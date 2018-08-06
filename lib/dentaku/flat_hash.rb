@@ -1,9 +1,31 @@
 module Dentaku
   class FlatHash
-    def self.from_hash(h, key = [], acc = {})
+    def self.from_hash_nested(h, key = [], acc = {})
       return acc.update(key => h)  unless h.is_a? Hash
-      h.each { |k, v| from_hash(v, key + [k], acc) }
+      h.each { |k, v| from_hash_nested(v, key + [k], acc) }
       flatten_keys(acc)
+    end
+
+    # Return a hash of variable name->value bindings.
+    # The method can flatten the nested hashes i.e. if the value of a
+    # a variable x is passed as {y: 1, z: 2}, it'll bind
+    # x.y = 1 and x.z = 2.
+    # This behavior is controlled by ignore_nested_hashes parameter.
+    # @param h [Hash] The hash containing the variable names and values
+    # @param ignore_nested_hashes [Boolean] If true, assume that there are no
+    #   hash objects present as values.
+    def self.from_hash(h, ignore_nested_hashes)
+      return h if ignore_nested_hashes
+      # Shallow copy is sufficient as we are not going to modify the values
+      dup_hash = h.clone
+      h.each do |k, v|
+        if v.is_a?(Hash)
+          new_hash = from_hash_nested({ k => v })
+          dup_hash.delete(k)
+          dup_hash.merge!(new_hash)
+        end
+      end
+      return dup_hash
     end
 
     def self.flatten_keys(hash)

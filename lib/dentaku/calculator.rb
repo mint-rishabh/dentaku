@@ -9,13 +9,16 @@ require 'dentaku/token'
 module Dentaku
   class Calculator
     include StringCasing
-    attr_reader :result, :memory, :tokenizer, :case_sensitive, :aliases
+    attr_reader :result, :memory, :tokenizer, :case_sensitive, :aliases, :ignore_nested_hashes
 
     def initialize(options = {})
       clear
       @tokenizer = Tokenizer.new
       @case_sensitive = options.delete(:case_sensitive)
       @aliases = options.delete(:aliases) || Dentaku.aliases
+      # If true, assume that the bind hash passed to the store method can
+      # only have numeric values and no hashes.
+      @ignore_nested_hashes = options.delete(:ignore_nested_hashes)
       @ast_cache = options
       @disable_ast_cache = false
       @function_registry = Dentaku::AST::FunctionRegistry.new
@@ -112,7 +115,8 @@ module Dentaku
       restore = Hash[memory]
 
       if value.nil?
-        FlatHash.from_hash(key_or_hash).each do |key, val|
+        FlatHash.from_hash(key_or_hash,
+                           @ignore_nested_hashes).each do |key, val|
           memory[standardize_case(key.to_s)] = val
         end
       else
